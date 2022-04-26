@@ -3,6 +3,7 @@ import dlib
 from imutils import face_utils
 import math
 import time
+import mouse
 import pyautogui
 import sys
 
@@ -60,9 +61,10 @@ if camera.isOpened():
     predictor = dlib.shape_predictor("predictor.dat")
 
     print("*** CALIBRATION ***")
-    print("Tilt your head up slightly, then right slightly, then down, etc.")
+    print("To calibrate, tilt your head up slightly, then right slightly, then down, (etc.),")
     print("rotating it in a slow, clockwise fashion.")
-    print("The program will begin in 10 seconds.")
+    print("The program will begin after 10 seconds of calibration.")
+    input("Press enter to start calibration.")
     calibration_start_time = time.time()
     while time.time() - calibration_start_time < 10:
         success, frame = camera.read()
@@ -127,7 +129,13 @@ if camera.isOpened():
                         mouse_y = screen_size[1] * (location[1] - min_y) / (max_y - min_y)
                         mouse_smooth = ((mouse_smooth_factor * mouse_smooth[0]) + ((1-mouse_smooth_factor) * mouse_x),
                             (mouse_smooth_factor * mouse_smooth[1]) + ((1-mouse_smooth_factor) * mouse_y))
-                        pyautogui.moveTo(mouse_smooth[0], mouse_smooth[1])
+                        #pyautogui.moveTo(mouse_smooth[0], mouse_smooth[1])
+                        mouse.move(mouse_smooth[0], mouse_smooth[1], absolute=True)
+                        # Failsafe
+                        if mouse.get_position() == (0, 0):
+                            camera.release()
+                            cv2.destroyAllWindows()
+                            sys.exit()
 
                         # Manage clicking
                         now = time.time()
@@ -136,7 +144,7 @@ if camera.isOpened():
                                 right_down = True
                                 if now - last_click > cooldown:
                                     print("LEFT CLICK")
-                                    pyautogui.click()
+                                    mouse.click()
                                     last_click = now
                         else:
                             if ratios[1] < click_threshold:
@@ -146,36 +154,11 @@ if camera.isOpened():
                                 left_down = True
                                 if now - last_click > cooldown:
                                     print("RIGHT CLICK")
-                                    pyautogui.click(button='right')
+                                    mouse.right_click()
                                     last_click = now
                         else:
                             if ratios[0] < click_threshold:
                                 left_down = False
-
-
-                        if False:
-                            # After watching the ratio data for a bunch of test winks,
-                            # a consistent indicator for a wink seemed to be if one eye's ratio is both above a certain threshold
-                            # AND consistently greater than the other eye's for at least 5 frames.
-                            if now - last_click > cooldown:
-                                if ratios[0] > click_threshold or ratios[1] > click_threshold:
-                                    if ratios[0] > ratios[1]:
-                                        left_counter += 1
-                                        right_counter = 0
-                                    elif ratios[1] > ratios[0]:
-                                        right_counter += 1
-                                        left_counter = 0
-                                    if left_counter == wink_frames:
-                                        print("RIGHT CLICK")
-                                        last_click = now
-                                    if right_counter == wink_frames:
-                                        print("LEFT CLICK")
-                                        last_click = now
-                                else:
-                                    left_counter = 0
-                                    right_counter = 0
-
-
 
                         fps = 1 / (now - last_time)
                         cv2.putText(frame, f"FPS: {round(fps, 2)}", (10, 50), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
